@@ -1,12 +1,14 @@
 #!/usr/bin/env node
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, isAbsolute, resolve } from "node:path";
 import { materializeBoard } from "./board.js";
+import { renderReport, type MgmMatrix } from "./report.js";
 import { guardedUpdate, readSnapshot, snapshotProblems } from "./io.js";
 import type { WorkItemUpdatePatch } from "./work-items.js";
 import { workItemRevision } from "./work-items.js";
 
 function usage(): string {
-  return "neat <check|next|board|update> [--root <repo>]\n  update <id> --expect <item-fingerprint> --patch <json-file>";
+  return "neat <check|next|board|html|matrix|update> [--root <repo>]\n  html [--out <path>]   generate a self-contained report with Board, Matrix, and Dependencies tabs\n  update <id> --expect <item-fingerprint> --patch <json-file>";
 }
 
 function option(args: readonly string[], name: string): string | undefined {
@@ -37,6 +39,20 @@ async function main(args: string[]): Promise<void> {
   }
   if (problems.length) throw new Error(problems.join("\n"));
   const board = materializeBoard(snapshot);
+  if (command === "html" || command === "matrix") {
+    const matrix = await readFile(resolve(root, ".neat", "mgm.json"), "utf8")
+      .then((text) => JSON.parse(text) as MgmMatrix)
+      .catch((error: unknown) => {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+        throw error;
+      });
+    const selected = option(args, "--out");
+    const output = selected ? (isAbsolute(selected) ? selected : resolve(root, selected)) : resolve(root, ".neat", "out", "neat-report.html");
+    await mkdir(dirname(output), { recursive: true });
+    await writeFile(output, renderReport(board, snapshot.items, { matrix }), "utf8");
+    process.stdout.write(`${output}\n`);
+    return;
+  }
   if (command === "board") {
     process.stdout.write(`${board.markdown}\n\n\`\`\`mermaid\n${board.mermaid}\n\`\`\`\n`);
     return;

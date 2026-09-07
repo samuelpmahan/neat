@@ -5,10 +5,10 @@
   "description": "Small repo-local work records, PCR-aware views, and safe agent updates.",
   "type": "module",
   "bin": {
-    "neat": "./dist/cli.js"
+    "neat": "./dist/src/cli.js"
   },
   "exports": {
-    ".": "./dist/index.js"
+    ".": "./dist/src/index.js"
   },
   "files": ["dist", "README.md"],
   "scripts": {

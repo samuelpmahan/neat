@@ -3,4 +3,5 @@ export * from "./pql.js";
 export * from "./pcr.js";
 export * from "./work-items.js";
 export * from "./board.js";
+export * from "./report.js";
 export * from "./io.js";
