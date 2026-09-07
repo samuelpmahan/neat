@@ -1,0 +1,26 @@
+{
+  "name": "@samuelpmahan/neat",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Small repo-local work records, PCR-aware views, and safe agent updates.",
+  "type": "module",
+  "bin": {
+    "neat": "./dist/cli.js"
+  },
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test dist/test/**/*.test.js",
+    "check": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
