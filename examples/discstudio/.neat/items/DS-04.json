@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "DS-04",
+  "outcome": "Save a physical disc with its image and facts so it survives reload and can be reused.",
+  "location": { "component": "discstudio/shelf-insertion" },
+  "target": { "kind": "tick", "identity": "tick.discstudio.shelf-insertion", "composition": "discstudio.first-flow", "name": "tick.discstudio.shelf-insertion" },
+  "requirements": [
+    { "id": "save-tile", "text": "Save the photo plus manufacturer, mold, and flight numbers; show a shelf tile." },
+    { "id": "edit-remove", "text": "Add, edit, and remove physical discs." },
+    { "id": "nickname", "text": "Support an optional nickname." },
+    { "id": "reload-reuse", "text": "Survive reload and immediately use a disc in DiscCard." },
+    { "id": "catalog-entry", "text": "Support catalog-assisted entry." },
+    { "id": "search-filter", "text": "Support search and filtering." },
+    { "id": "bags-bulk", "text": "Support multiple bags and bulk actions." },
+    { "id": "backup-sync", "text": "Support backups and synchronization." }
+  ],
+  "dependencies": [
+    { "item": "DS-01", "requires": "verified" },
+    { "item": "DS-02", "requires": "verified" },
+    { "item": "DS-03", "requires": "verified" }
+  ],
+  "status": "queued",
+  "blockers": [],
+  "checkpoints": [],
+  "acceptanceRefs": [],
+  "promotionRefs": [],
+  "resume": "Build save, reload, and DiscCard reuse after intake, framing, and prepared image are verified."
+}

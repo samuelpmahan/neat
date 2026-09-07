@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "DS-03",
+  "outcome": "Materialize a clean transparent prepared image from the framing recipe.",
+  "location": { "component": "discstudio/prepared-image" },
+  "target": { "kind": "tick", "identity": "tick.discstudio.prepared-image", "composition": "discstudio.first-flow", "name": "tick.discstudio.prepared-image" },
+  "requirements": [
+    { "id": "transparent-png", "text": "Produce a transparent circular PNG at one useful resolution." },
+    { "id": "original-recipe", "text": "Preserve the original and crop recipe." },
+    { "id": "regenerate", "text": "Regenerate the transparent output from the recipe." },
+    { "id": "background-inspection", "text": "Inspect the cutout against light, dark, and checkerboard backgrounds." },
+    { "id": "multiple-resolutions", "text": "Produce multiple resolutions." },
+    { "id": "edge-shadow", "text": "Refine edges and handle shadows." },
+    { "id": "batch-export", "text": "Support batch regeneration and export presets." }
+  ],
+  "dependencies": [ { "item": "DS-02", "requires": "verified" } ],
+  "status": "queued",
+  "blockers": [],
+  "checkpoints": [],
+  "acceptanceRefs": [],
+  "promotionRefs": [],
+  "resume": "Build the reproducible Goldilocks cutout and inspect it on all three backgrounds."
+}

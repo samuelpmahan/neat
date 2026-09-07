@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "scopeSemantics": "cumulative",
+  "title": "DiscStudio staged capability matrix",
+  "foundations": ["PxC", "PQL", "PCR"],
+  "units": [
+    {
+      "id": "DS-01",
+      "title": "Photo intake",
+      "target": { "kind": "tick", "identity": "tick.discstudio.photo-intake", "composition": "discstudio.first-flow", "name": "tick.discstudio.photo-intake" },
+      "inspectableResult": "That is my photo, correctly oriented.",
+      "targetScope": "goldilocks",
+      "scopes": {
+        "minimal": { "requirementIds": ["require-photo"] },
+        "goldilocks": { "requirementIds": ["orientation", "original", "retry"] },
+        "maximal": { "requirementIds": ["multi-photo", "capture-guidance", "blur-glare", "best-shot"] }
+      }
+    },
+    {
+      "id": "DS-02",
+      "title": "Disc framing / correction",
+      "target": { "kind": "tick", "identity": "tick.discstudio.disc-framing", "composition": "discstudio.first-flow", "name": "tick.discstudio.disc-framing" },
+      "inspectableResult": "That outline follows my disc; the corrected preview looks right.",
+      "targetScope": "goldilocks",
+      "scopes": {
+        "minimal": { "requirementIds": ["circle-position"] },
+        "goldilocks": { "requirementIds": ["ellipse-handles", "corrected-preview", "reset-original"] },
+        "maximal": { "requirementIds": ["rim-detection", "perspective-correction", "confidence-recapture"] }
+      }
+    },
+    {
+      "id": "DS-03",
+      "title": "Prepared image",
+      "target": { "kind": "tick", "identity": "tick.discstudio.prepared-image", "composition": "discstudio.first-flow", "name": "tick.discstudio.prepared-image" },
+      "inspectableResult": "That cutout looks clean on an actual graphic.",
+      "targetScope": "goldilocks",
+      "scopes": {
+        "minimal": { "requirementIds": ["transparent-png"] },
+        "goldilocks": { "requirementIds": ["original-recipe", "regenerate", "background-inspection"] },
+        "maximal": { "requirementIds": ["multiple-resolutions", "edge-shadow", "batch-export"] }
+      }
+    },
+    {
+      "id": "DS-04",
+      "title": "Shelf insertion",
+      "target": { "kind": "tick", "identity": "tick.discstudio.shelf-insertion", "composition": "discstudio.first-flow", "name": "tick.discstudio.shelf-insertion" },
+      "inspectableResult": "That physical disc is saved, survives reload, and is reusable.",
+      "targetScope": "goldilocks",
+      "scopes": {
+        "minimal": { "requirementIds": ["save-tile"] },
+        "goldilocks": { "requirementIds": ["edit-remove", "nickname", "reload-reuse"] },
+        "maximal": { "requirementIds": ["catalog-entry", "search-filter", "bags-bulk", "backup-sync"] }
+      }
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "DS-02",
+  "outcome": "Frame the disc photo and produce a corrected preview that can be inspected.",
+  "location": { "component": "discstudio/disc-framing" },
+  "target": { "kind": "tick", "identity": "tick.discstudio.disc-framing", "composition": "discstudio.first-flow", "name": "tick.discstudio.disc-framing" },
+  "requirements": [
+    { "id": "circle-position", "text": "Manually position and resize a circular crop." },
+    { "id": "ellipse-handles", "text": "Provide circle handles plus optional ellipse adjustment for mild tilt." },
+    { "id": "corrected-preview", "text": "Show an immediate circularized corrected preview." },
+    { "id": "reset-original", "text": "Reset to the original framing." },
+    { "id": "rim-detection", "text": "Experiment with automatic rim detection." },
+    { "id": "perspective-correction", "text": "Experiment with perspective correction." },
+    { "id": "confidence-recapture", "text": "Offer confidence-aware suggestions and assisted recapture." }
+  ],
+  "dependencies": [ { "item": "DS-01", "requires": "verified" } ],
+  "status": "queued",
+  "blockers": [],
+  "checkpoints": [],
+  "acceptanceRefs": [],
+  "promotionRefs": [],
+  "resume": "Build manual ellipse-capable framing. Automatic correction is a future experiment, not selected scope."
+}

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "DS-01",
+  "outcome": "Intake a required photo and preserve it as the source for the DiscStudio flow.",
+  "location": { "component": "discstudio/photo-intake" },
+  "target": { "kind": "tick", "identity": "tick.discstudio.photo-intake", "composition": "discstudio.first-flow", "name": "tick.discstudio.photo-intake" },
+  "requirements": [
+    { "id": "require-photo", "text": "Require a photo; decode and display it." },
+    { "id": "orientation", "text": "Support camera or file upload and correct orientation." },
+    { "id": "original", "text": "Preserve the original photo." },
+    { "id": "retry", "text": "Provide a clear retry on failure." },
+    { "id": "multi-photo", "text": "Support multiple photos per disc." },
+    { "id": "capture-guidance", "text": "Provide capture guidance." },
+    { "id": "blur-glare", "text": "Assess blur and glare." },
+    { "id": "best-shot", "text": "Automatically select the best shot." }
+  ],
+  "dependencies": [],
+  "status": "queued",
+  "blockers": [],
+  "checkpoints": [],
+  "acceptanceRefs": [],
+  "promotionRefs": [],
+  "resume": "Build the Goldilocks intake path; automatic best-shot selection remains maximal."
+}

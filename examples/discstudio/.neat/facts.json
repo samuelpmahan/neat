@@ -1,0 +1,43 @@
+{
+  "availableSurfaces": [
+    "discstudio/photo-intake",
+    "discstudio/disc-framing",
+    "discstudio/prepared-image",
+    "discstudio/shelf-insertion"
+  ],
+  "compositions": [
+    {
+      "identity": "discstudio.first-flow",
+      "pql": {
+        "PrincipleComponentRender": "DiscStudioFirstFlow",
+        "Ticks": [
+          {
+            "name": "tick.discstudio.photo-intake",
+            "Calculations": [
+              { "call": "fn.discstudio.intake", "into": "px.sourcePhoto" }
+            ]
+          },
+          {
+            "name": "tick.discstudio.disc-framing",
+            "Calculations": [
+              { "call": "fn.discstudio.prepare-image", "into": "px.preparedImage" }
+            ]
+          },
+          {
+            "name": "tick.discstudio.prepared-image",
+            "Calculations": [
+              { "call": "fn.discstudio.prepare-image", "into": "px.preparedImage" }
+            ]
+          },
+          {
+            "name": "tick.discstudio.shelf-insertion",
+            "Calculations": [
+              { "call": "fn.discstudio.prepare-image", "into": "px.preparedImage" },
+              { "call": "fn.discstudio.insert-shelf", "into": "px.shelf" }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
