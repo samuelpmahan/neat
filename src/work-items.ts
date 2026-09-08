@@ -96,6 +96,8 @@ export interface VerificationRecord {
   target: WorkTarget;
   requirementResults: Record<string, EvidenceResult>;
   synthetic?: boolean;
+  /** Immutable structured submission that supplied this record, when applicable. */
+  submissionId?: string;
   label?: string;
 }
 
@@ -123,6 +125,8 @@ export interface BoardFacts {
   verificationRecords?: VerificationRecord[];
   acceptanceRecords?: AcceptanceFact[];
   promotionRecords?: PromotionFact[];
+  reviewSubmissionItemIds?: string[];
+  humanInspectionRecords?: Array<{ submissionId: string; itemId: string; checkpointId: string; subjectCommit: string; human: string; inspected: Record<string, boolean> }>;
   /**
    * The already-declared execution compositions.  This is the source for
    * Tick membership and shared-Calculation fanout; items never repeat it.

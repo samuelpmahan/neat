@@ -1,6 +1,8 @@
 import type { BoardModel } from "./board.js";
 import type { ItemAssessment, DependencyEdge } from "./board.js";
 import type { WorkItem, WorkTarget } from "./work-items.js";
+import { HumanInspectionRecord, ReviewSubmission, assessSubmissions } from "./review.js";
+import { tickPartChecklistScript } from "./review-component.js";
 
 /** The three intentional product scopes in an mGM row. */
 export type MgmScope = "minimal" | "goldilocks" | "maximal";
@@ -25,6 +27,8 @@ export interface MgmMatrix {
 export interface ReportOptions {
   title?: string;
   matrix?: MgmMatrix;
+  submissions?: readonly ReviewSubmission[];
+  humanInspections?: readonly HumanInspectionRecord[];
 }
 
 const esc = (value: unknown): string => String(value ?? "")
@@ -81,6 +85,23 @@ function matrixTab(matrix: MgmMatrix | undefined, items: readonly WorkItem[], bo
   return `<section id="tab-matrix" class="tab-panel" role="tabpanel"><p class="matrix-note">${esc(matrix.title ?? "mGM capability matrix")}. Target scope is ${esc(matrix.units.map((u) => `${u.id}=${u.targetScope}`).join(" · "))}. Scope requirements are cumulative (each tier includes prior tiers); each tier is a planned target and is not assessed per tier. Observed verified/accepted status is shown separately per unit.</p><p><b>Foundations:</b> ${esc(matrix.foundations.join(" · "))}</p><table class="matrix"><thead><tr><th>Tick / unit</th><th>Minimal</th><th>Goldilocks</th><th>Maximal</th></tr></thead><tbody>${rows}</tbody></table></section>`;
 }
 
+function reviewTab(items: readonly WorkItem[], options: ReportOptions): string {
+  const assessed = assessSubmissions(items, options.submissions ?? []);
+  const current = assessed.filter((assessment) => assessment.current).map((assessment) => assessment.submission);
+  const historical = assessed.filter((assessment) => !assessment.current);
+  if (!current.length && !historical.length) return `<section id="tab-review" class="tab-panel" role="tabpanel"><p class="empty">No structured review handoffs.</p></section>`;
+  const details = current.map((submission) => {
+    const checks = submission.verifications.filter((verification) => verification.reviewable).map((verification) => ({ id: verification.id, label: verification.label, reviewId: verification.id, action: verification.links[0] }));
+    const checklist = JSON.stringify([{ id: submission.itemId, label: `Review ${submission.itemId}`, parts: checks }]);
+    const inspections = (options.humanInspections ?? []).filter((record) => record.submissionId === submission.id);
+    const inspectionCount = inspections.length;
+    const inspectionState = inspections.length ? `<p class="muted">Latest inspection: ${checks.map((check) => `${esc(check.label)} ${inspections.at(-1)?.inspected[check.reviewId] ? "✓" : "○"}`).join(" · ")}</p>` : "";
+    return `<article class="handoff"><h3>${esc(submission.itemId)} · ${esc(submission.subjectCommit)}</h3><h4>What changed</h4><ul>${submission.whatChanged.map((change) => `<li>${esc(change)}</li>`).join("")}</ul><h4>Verifications</h4><ul>${submission.verifications.map((verification) => `<li><b>${esc(verification.label)}</b> — ${esc(verification.observed)} · ${verification.links.map((link) => { const href = safeHref(link.href); return href ? `<a href="${attr(href)}">${esc(link.label)}</a>` : esc(link.label); }).join(" · ")}</li>`).join("")}</ul><p class="muted">${inspectionCount} durable human inspection export(s). Inspection is not acceptance.</p>${inspectionState}${checks.length ? `<tick-part-checklist inline storage-key="neat:${attr(submission.id)}" submission-id="${attr(submission.id)}" item-id="${attr(submission.itemId)}" checkpoint-id="${attr(submission.checkpointId)}" subject-commit="${attr(submission.subjectCommit)}" export-filename="${attr(`inspection-${submission.id}.json`)}" data-checklist='${attr(checklist)}'></tick-part-checklist>` : ""}</article>`;
+  }).join("");
+  const history = historical.length ? `<details><summary>Historical handoffs (${historical.length})</summary><ul>${historical.map((assessment) => `<li>${esc(assessment.submission.id)} — ${esc(assessment.reason ?? "superseded")}</li>`).join("")}</ul></details>` : "";
+  return `<section id="tab-review" class="tab-panel" role="tabpanel">${details}${history}</section>`;
+}
+
 function dependenciesTab(items: readonly WorkItem[], board: BoardModel): string {
   const ids = items.map((item) => item.id).filter((id) => board.assessments.some((a) => a.itemId === id));
   const positions = new Map(ids.map((id, index) => [id, { x: 170 + (index % 3) * 250, y: 80 + Math.floor(index / 3) * 105 }]));
@@ -100,9 +121,10 @@ function dependenciesTab(items: readonly WorkItem[], board: BoardModel): string 
 /** Render a self-contained, local HTML report from the retained BoardModel. */
 export function renderReport(board: BoardModel, items: readonly WorkItem[], options: ReportOptions = {}): string {
   const title = options.title ?? "neat report";
+  const fixtureNotice = title.toLowerCase().includes("synthetic") ? `<p class="matrix-note">Synthetic fixture: its records demonstrate neat; they do not verify a product implementation.</p>` : "";
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>
     :root{font:15px/1.45 system-ui,sans-serif;color:#202124;background:#f6f7f9}body{max-width:1180px;margin:0 auto;padding:28px}h1{margin:0 0 18px}.tabs{display:flex;gap:8px;border-bottom:1px solid #ccd1d9;margin-bottom:18px}.tab{border:0;background:none;padding:10px 15px;cursor:pointer;font:inherit}.tab[aria-selected=true]{border-bottom:3px solid #3458d4;color:#193aab;font-weight:700}.tab-panel{display:none}.tab-panel.active{display:block}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}.card{background:white;border:1px solid #d9dde5;border-radius:10px;padding:16px;box-shadow:0 2px 7px #17233b12}.card-head{display:flex;justify-content:space-between;gap:10px}.card h3{margin:0}.card h3 small{font-size:.7em;font-weight:500;color:#5a6474}.activity{font-size:.8em;color:#596579}.target{font-size:.9em}.statuses{display:flex;gap:8px;flex-wrap:wrap}.status{font-size:.8em;border-radius:999px;padding:3px 8px;background:#eef0f4}.status.yes{background:#dff4e5;color:#155a2a}.evidence{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;font-size:.85em}.refs{margin:3px 0;padding-left:18px}.muted{color:#697386}.blockers{color:#9b2c2c;font-size:.88em}.matrix{width:100%;border-collapse:collapse;background:white}.matrix th,.matrix td{border:1px solid #d9dde5;padding:12px;text-align:left;vertical-align:top}.matrix td{min-width:180px}.matrix td span,.matrix td small{display:block}.matrix td small{margin-top:7px;color:#657084;font-size:.78em}.matrix .state-observed{background:#e6f7eb}.matrix .state-planned{background:#fff7dc}.matrix-note{padding:10px 13px;background:#eef2ff;border-left:4px solid #526dd6}.observed{font-size:.78em;margin:5px 0}.dependency-map{width:100%;min-height:210px;background:white;border:1px solid #d9dde5;border-radius:10px}.edge{stroke:#8e98a8;stroke-width:2;marker-end:url(#arrow)}.edge.blocked{stroke:#c63d3d;stroke-dasharray:5 4}.edge-label{font-size:11px;text-anchor:middle;fill:#49566a}.node rect{fill:#fff;stroke:#61708a}.node text{text-anchor:middle;font-weight:700;font-size:14px}.node .node-label{font-size:9px;font-weight:400}.legend{font-size:.88em;color:#536174}.fanout{background:white;border:1px solid #d9dde5;border-radius:8px;padding:12px 30px}
-  </style></head><body><h1>${esc(title)}</h1><nav class="tabs" role="tablist"><button class="tab" role="tab" aria-selected="true" aria-controls="tab-board" data-tab="tab-board">Board</button><button class="tab" role="tab" aria-selected="false" aria-controls="tab-matrix" data-tab="tab-matrix">Matrix</button><button class="tab" role="tab" aria-selected="false" aria-controls="tab-dependencies" data-tab="tab-dependencies">Dependencies</button></nav>${boardTab(items, board)}${matrixTab(options.matrix, items, board)}${dependenciesTab(items, board)}<script>document.querySelectorAll('.tab').forEach(function(b){b.addEventListener('click',function(){document.querySelectorAll('.tab').forEach(function(x){x.setAttribute('aria-selected',String(x===b));});document.querySelectorAll('.tab-panel').forEach(function(x){x.classList.toggle('active',x.id===b.dataset.tab);});});});document.getElementById('tab-board').classList.add('active');</script></body></html>`;
+  </style></head><body><h1>${esc(title)}</h1><nav class="tabs" role="tablist"><button class="tab" role="tab" aria-selected="true" aria-controls="tab-board" data-tab="tab-board">Board</button><button class="tab" role="tab" aria-selected="false" aria-controls="tab-matrix" data-tab="tab-matrix">Matrix</button><button class="tab" role="tab" aria-selected="false" aria-controls="tab-dependencies" data-tab="tab-dependencies">Dependencies</button><button class="tab" role="tab" aria-selected="false" aria-controls="tab-review" data-tab="tab-review">Review</button></nav>${fixtureNotice}${boardTab(items, board)}${matrixTab(options.matrix, items, board)}${dependenciesTab(items, board)}${reviewTab(items, options)}<script>${tickPartChecklistScript}</script><script>document.querySelectorAll('.tab').forEach(function(b){b.addEventListener('click',function(){document.querySelectorAll('.tab').forEach(function(x){x.setAttribute('aria-selected',String(x===b));});document.querySelectorAll('.tab-panel').forEach(function(x){x.classList.toggle('active',x.id===b.dataset.tab);});});});document.getElementById('tab-board').classList.add('active');</script></body></html>`;
 }
 
 export const renderHtmlReport = renderReport;
