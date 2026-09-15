@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>neat</title>
+<style>body{font:15px/1.5 system-ui,sans-serif;max-width:640px;margin:40px auto;padding:0 16px;color:#1f2937}code{background:#f3f4f6;padding:2px 6px;border-radius:4px}pre{background:#f3f4f6;padding:12px;border-radius:8px;overflow:auto}</style>
+</head>
+<body>
+<h1>neat</h1>
+<p>Small repo-local work records, PCR-aware views, and safe agent updates. Plus the review checklist component.</p>
+<h2>Checklist component</h2>
+<p>Drop the custom element into any page:</p>
+<pre><code>&lt;script src="https://samuelpmahan.github.io/neat/tick-part-checklist.js"&gt;&lt;/script&gt;
+&lt;tick-part-checklist data-checklist='[...]' storage-key="my-review"&gt;&lt;/tick-part-checklist&gt;</code></pre>
+<p>As an ES module (Node or bundler):</p>
+<pre><code>import { tickPartChecklistScript } from 'https://samuelpmahan.github.io/neat/dist/review-component.js';</code></pre>
+<p>npm package: <code>@samuelpmahan/neat</code> (<code>./checklist</code> subpath).</p>
+<p><small>Checking records inspection only. It never accepts or promotes work.</small></p>
+</body>
+</html>
