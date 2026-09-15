@@ -1,0 +1,277 @@
+#!/usr/bin/env python3
+"""neat v0 — the climb ledger.
+
+Markdown-backed, append-only. Tracks WorkItems climbing toward a tidy milestone.
+Hard rule: neat NEVER records acceptance. There is no accept command; asking for
+`status accepted` is refused. Sam records acceptance by editing the ledger by hand
+(the intentionally awkward gate).
+"""
+import argparse
+import datetime
+import sys
+from pathlib import Path
+
+LEDGER = Path(__file__).resolve().parent / "NEAT.md"
+STATUSES = ["open", "climbing", "review", "landed"]
+EVENTS = ["branch", "pack", "verify", "land", "note", "req", "status"]
+
+
+def now():
+    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%MZ")
+
+
+def split_item(text, item_id):
+    lines = text.splitlines(keepends=True)
+    hdr = next((i for i, l in enumerate(lines) if l.rstrip("\n") == f"## Item: {item_id}"), None)
+    if hdr is None:
+        return None
+    end = next((i for i in range(hdr + 1, len(lines)) if lines[i].startswith("## ")), len(lines))
+    return lines[:hdr], lines[hdr:end], lines[end:]
+
+
+def join(parts):
+    pre, item, post = parts
+    return "".join(pre + item + post)
+
+
+def section_range(item_lines, section):
+    """(header_idx, first_row_idx, last_row_idx_excl) for `- section:` list."""
+    hdr = next((i for i, l in enumerate(item_lines) if l.rstrip("\n") == f"- {section}:"), None)
+    if hdr is None:
+        return None
+    j = hdr + 1
+    while j < len(item_lines) and item_lines[j].startswith("  - "):
+        j += 1
+    return hdr, hdr + 1, j
+
+
+def cmd_add(a):
+    LEDGER.touch(exist_ok=True)
+    text = LEDGER.read_text()
+    if split_item(text, a.id):
+        sys.exit(f"item {a.id} already exists")
+    spec = a.spec or "—"
+    if spec != "—":
+        sp = Path(__file__).resolve().parent / spec
+        if not sp.is_file():
+            sys.exit(f"spec file not found: {sp}")
+    block = (
+        f"## Item: {a.id}\n"
+        f"- title: {a.title}\n"
+        f"- milestone: {a.milestone}\n"
+        f"- spec: {spec}\n"
+        f"- status: open\n"
+        f"- requirements:\n"
+        f"- log:\n"
+        f"  - {now()} note item opened\n"
+    )
+    if spec != "—":
+        block += f"  - {now()} note spec bound: {spec} (m-cases are the requirement rows)\n"
+    if text and not text.endswith("\n"):
+        text += "\n"
+    LEDGER.write_text(text + ("\n" if text else "") + block)
+    print(f"item {a.id} opened")
+
+
+def cmd_log(a):
+    if a.event not in EVENTS:
+        sys.exit(f"unknown event {a.event}; want one of {', '.join(EVENTS)}")
+    parts = split_item(LEDGER.read_text(), a.id)
+    if not parts:
+        sys.exit(f"no such item: {a.id}")
+    rng = section_range(parts[1], "log")
+    entry = f"  - {now()} {a.event} {a.note or ''}".rstrip() + "\n"
+    if a.event == "status":
+        sys.exit("log event 'status' is reserved; use `neat status`")
+    parts[1].insert(rng[2], entry)
+    LEDGER.write_text(join(parts))
+    print(f"logged {a.event} on {a.id}")
+
+
+def cmd_req(a):
+    parts = split_item(LEDGER.read_text(), a.id)
+    if not parts:
+        sys.exit(f"no such item: {a.id}")
+    rng = section_range(parts[1], "requirements")
+    if not rng:
+        sys.exit("requirements section missing")
+    hdr, lo, hi = rng
+    if a.op == "add":
+        parts[1].insert(hi, f"  - [open] {a.text}\n")
+        # log it too (recompute: indices shifted by the insert)
+        lrng = section_range(parts[1], "log")
+        parts[1].insert(lrng[2], f"  - {now()} req added: {a.text}\n")
+        LEDGER.write_text(join(parts))
+        print(f"requirement added to {a.id}")
+    else:
+        rows = [i for i in range(lo, hi) if parts[1][i].startswith("  - [")]
+        try:
+            idx = rows[int(a.n) - 1]
+        except (IndexError, ValueError):
+            sys.exit(f"no requirement #{a.n} on {a.id}")
+        cur = "[open]" if "[open]" in parts[1][idx] else "[ready]"
+        want = "[ready]" if a.op == "ready" else "[open]"
+        if cur == want:
+            sys.exit(f"requirement #{a.n} already {want.strip('[]')}")
+        parts[1][idx] = parts[1][idx].replace(cur, want, 1)
+        lrng = section_range(parts[1], "log")
+        parts[1].insert(lrng[2], f"  - {now()} req #{a.n} -> {want.strip('[]')}\n")
+        LEDGER.write_text(join(parts))
+        print(f"requirement #{a.n} on {a.id} -> {want.strip('[]')}")
+
+
+def cmd_status(a):
+    if a.to == "accepted":
+        sys.exit("refused: acceptance is Sam's pen. neat never records it — he edits the ledger by hand.")
+    if a.to not in STATUSES:
+        sys.exit(f"want one of {', '.join(STATUSES)} (never accepted)")
+    parts = split_item(LEDGER.read_text(), a.id)
+    if not parts:
+        sys.exit(f"no such item: {a.id}")
+    for i, l in enumerate(parts[1]):
+        if l.startswith("- status:"):
+            parts[1][i] = f"- status: {a.to}\n"
+            break
+    lrng = section_range(parts[1], "log")
+    parts[1].insert(lrng[2], f"  - {now()} status -> {a.to}\n")
+    LEDGER.write_text(join(parts))
+    print(f"{a.id} -> {a.to}")
+
+
+def cmd_review(a):
+    text = LEDGER.read_text()
+    found = False
+    for m in __import__("re").finditer(r"^## Item: (\S+)\s*$", text, __import__("re").M):
+        parts = split_item(text, m.group(1))
+        status = next((l.split(":")[1].strip() for l in parts[1] if l.startswith("- status:")), "?")
+        if status != "review":
+            continue
+        found = True
+        title = next((l.split(":", 1)[1].strip() for l in parts[1] if l.startswith("- title:")), "")
+        spec = next((l.split(":", 1)[1].strip() for l in parts[1] if l.startswith("- spec:")), "—")
+        print(f"\n## {m.group(1)} — {title}")
+        if spec and spec != "—":
+            print(f"  spec: {spec}")
+        rng = section_range(parts[1], "requirements")
+        if rng:
+            for l in parts[1][rng[1]:rng[2]]:
+                print("  " + l.rstrip("\n"))
+        erng = section_range(parts[1], "evidence")
+        if erng:
+            for l in parts[1][erng[1]:erng[2]]:
+                print("  " + l.rstrip("\n"))
+    if not found:
+        print("nothing awaiting Sam's review")
+
+
+def cmd_spec(a):
+    parts = split_item(LEDGER.read_text(), a.id)
+    if not parts:
+        sys.exit(f"no such item: {a.id}")
+    spec = next((l.split(":", 1)[1].strip() for l in parts[1] if l.startswith("- spec:")), "—")
+    if not spec or spec == "—":
+        sys.exit(f"{a.id} has no spec bound")
+    sp = Path(__file__).resolve().parent / spec
+    if not sp.is_file():
+        sys.exit(f"spec file missing: {sp}")
+    print(sp.read_text().rstrip("\n"))
+
+
+def case_id_of(row):
+    """Id part of a requirement row: `  - [open] upload.m.defaults — ...`."""
+    rest = row[3:].strip()
+    for st in ("[open] ", "[ready] "):
+        if rest.startswith(st):
+            rest = rest[len(st):]
+            break
+    return rest.split(" — ", 1)[0].strip()
+
+
+def cmd_evidence(a):
+    if not a.receipt:
+        sys.exit("evidence needs --receipt: what run backs this case? (try run:/ci:/commit:/browser:/note:)")
+    parts = split_item(LEDGER.read_text(), a.id)
+    if not parts:
+        sys.exit(f"no such item: {a.id}")
+    rng = section_range(parts[1], "requirements")
+    if not rng:
+        sys.exit("requirements section missing")
+    target = next((i for i in range(rng[1], rng[2])
+                   if parts[1][i].startswith("  - [") and case_id_of(parts[1][i]) == a.case_id), None)
+    if target is None:
+        sys.exit(f"no such case {a.case_id} on {a.id} — evidence needs a case")
+    flipped = False
+    if "[open]" in parts[1][target]:
+        parts[1][target] = parts[1][target].replace("[open]", "[ready]", 1)
+        flipped = True
+    erng = section_range(parts[1], "evidence")
+    if not erng:
+        loghdr = next(j for j, l in enumerate(parts[1]) if l.rstrip("\n") == "- log:")
+        parts[1].insert(loghdr, "- evidence:\n")
+        erng = section_range(parts[1], "evidence")
+    parts[1].insert(erng[2], f"  - {a.case_id}: {now()} {a.receipt}\n")
+    lrng = section_range(parts[1], "log")
+    entry = f"  - {now()} evidence {a.case_id}: {a.receipt}\n"
+    if flipped:
+        entry += f"  - {now()} req {a.case_id} -> ready\n"
+    parts[1].insert(lrng[2], entry)
+    LEDGER.write_text(join(parts))
+    print(f"evidence recorded for {a.case_id} on {a.id}" + (" (row -> ready)" if flipped else ""))
+
+
+def cmd_show(a):
+    parts = split_item(LEDGER.read_text(), a.id)
+    if not parts:
+        sys.exit(f"no such item: {a.id}")
+    print("".join(parts[1]).rstrip("\n"))
+
+
+def main():
+    p = argparse.ArgumentParser(prog="neat", description="neat v0 — climb ledger")
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    s = sub.add_parser("add", help="open a work item")
+    s.add_argument("id")
+    s.add_argument("--title", required=True)
+    s.add_argument("--milestone", required=True)
+    s.add_argument("--spec", default=None,
+                   help="bind an mGM spec file (path relative to the ntc dir); "
+                        "its boundary cases become the requirement rows")
+
+    s = sub.add_parser("log", help="append a log event (append-only)")
+    s.add_argument("id")
+    s.add_argument("event", help=f"one of {', '.join(EVENTS)}")
+    s.add_argument("--note", default="")
+
+    s = sub.add_parser("req", help="requirements: add | ready N | reopen N")
+    s.add_argument("id")
+    s.add_argument("op", choices=["add", "ready", "reopen"])
+    s.add_argument("text", nargs="?")
+
+    s = sub.add_parser("status", help=f"move status ({', '.join(STATUSES)}; never accepted)")
+    s.add_argument("id")
+    s.add_argument("to")
+
+    sub.add_parser("review", help="handoff view: items awaiting Sam's review")
+    s = sub.add_parser("show", help="dump one item")
+    s.add_argument("id")
+    s = sub.add_parser("spec", help="print the mGM spec bound to an item")
+    s.add_argument("id")
+    s = sub.add_parser("evidence", help="record a receipt that a case composes correctly")
+    s.add_argument("id")
+    s.add_argument("case_id", help="must match a requirement row's case id")
+    s.add_argument("--receipt", default=None,
+                   help="the run backing it: run:/ci:/commit:/browser:/note:")
+
+    a = p.parse_args()
+    if a.cmd == "req" and a.op == "add" and not a.text:
+        sys.exit("req add needs text")
+    if a.cmd == "req" and a.op != "add":
+        a.n = a.text
+    {"add": cmd_add, "log": cmd_log, "req": cmd_req,
+     "status": cmd_status, "review": cmd_review, "show": cmd_show,
+     "spec": cmd_spec, "evidence": cmd_evidence}[a.cmd](a)
+
+
+if __name__ == "__main__":
+    main()
