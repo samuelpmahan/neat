@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "demo-review-submission",
+  "itemId": "DEMO-REVIEW",
+  "expectedItemRevision": "2a602589",
+  "checkpointId": "cp-demo-review",
+  "subjectCommit": "abc123demo",
+  "createdBy": "neat-demo-agent",
+  "whatChanged": ["Added a structured, checkpoint-bound review handoff.", "Added a hidable checklist with inspectable proof routes and durable inspection export."],
+  "verifications": [
+    { "id": "handoff-exec", "label": "Structured handoff", "recordKind": "calculation", "requirementIds": ["structured"], "results": { "structured": "passed" }, "observed": "The handoff validates against the exact current item fingerprint and checkpoint.", "links": [{ "label": "Open handoff", "href": "handoff.md" }], "reviewable": true },
+    { "id": "handoff-inspect", "label": "Handoff render", "recordKind": "inspection", "requirementIds": ["structured"], "results": { "structured": "passed" }, "observed": "The generated Review tab names the checkpoint, changes, and proof route.", "links": [{ "label": "Open report", "href": "ready-review.html" }], "reviewable": true },
+    { "id": "route-exec", "label": "Inspectable route", "recordKind": "calculation", "requirementIds": ["inspectable"], "results": { "inspectable": "passed" }, "observed": "Each verification has a label, observed result, and safe route.", "links": [{ "label": "Open report", "href": "ready-review.html" }], "reviewable": true },
+    { "id": "route-inspect", "label": "Route render", "recordKind": "inspection", "requirementIds": ["inspectable"], "results": { "inspectable": "passed" }, "observed": "The Review tab renders the route as an actionable review link.", "links": [{ "label": "Open report", "href": "ready-review.html" }], "reviewable": true }
+  ]
+}

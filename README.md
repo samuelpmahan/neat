@@ -31,3 +31,23 @@ node dist/src/cli.js board --root fixtures/generic-project
 - A human acceptance must be explicitly recorded with its source; tests and agents cannot create it.
 - Neat does not run product tests, render product output, or call Tidy promotion.
 - The standalone Tidy promotion receipt is not available yet, so neat only preserves external promotion references.
+
+## Review handoffs
+
+When an agent asks for review, it writes a structured JSON submission instead of a prose-only claim. The submission identifies one current work item, its exact latest checkpoint and commit, what changed, and per-requirement observed verification with an inspectable route.
+
+```sh
+neat submit review-submission.json --root path/to/project
+neat handoff --root path/to/project --out REVIEW.md
+neat html --root path/to/project --out review.html
+```
+
+`submit` checks the current item fingerprint and latest checkpoint, then creates an immutable `.neat/submissions/<id>.json` record. A later edit makes it historical: the report retains it as history but it cannot prove the new item state.
+
+The HTML **Review** tab embeds the hidable `tick-part-checklist` overlay. Reviewable checks contain agent-provided action routes. **Export inspection** downloads a JSON record; save it with:
+
+```sh
+neat import-inspection inspection.json --root path/to/project
+```
+
+That records a human inspection only. It never sets acceptance or Tidy promotion. See [the drop-in overlay contract](docs/checklist-overlay.md) and the runnable [generic review example](examples/review-handoff/README.md).

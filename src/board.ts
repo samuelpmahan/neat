@@ -55,6 +55,9 @@ export interface ItemAssessment {
   blockers: string[];
   bucket: BoardBucket;
   synthetic: boolean;
+  /** Count of durable human checklist exports for the current checkpoint; never acceptance. */
+  humanInspectionCount: number;
+  submittedForReview: boolean;
 }
 
 export interface DependencyEdge {
@@ -203,7 +206,7 @@ function verificationFor(
   ]);
   const matchingRecords = records.filter(
     (record) =>
-      declaredIds.has(record.id) &&
+      (declaredIds.has(record.id) || Boolean(record.submissionId)) &&
       record.itemId === item.id &&
       record.checkpointId === checkpoint.id &&
       record.subjectCommit === checkpoint.commit &&
@@ -214,10 +217,12 @@ function verificationFor(
   );
   return item.requirements.map((requirement) => {
     const declared = checkpoint.verificationRefs[requirement.id];
-    const refs = matchingRecords.filter((record) => refMatches(declared, record.id));
+    const refs = matchingRecords.filter((record) =>
+      (Boolean(record.submissionId) || refMatches(declared, record.id) || (checkpoint.inspectionRefs ?? []).map(recordReferenceKey).includes(record.id)) && Object.hasOwn(record.requirementResults, requirement.id),
+    );
     const evidence = refs.map((record) => record.id).sort();
-    const hasExecution = matchingRecords.some((record) => record.recordKind !== "inspection");
-    const hasInspection = matchingRecords.some((record) => record.recordKind === "inspection");
+    const hasExecution = refs.some((record) => record.recordKind !== "inspection");
+    const hasInspection = refs.some((record) => record.recordKind === "inspection");
     if (!hasExecution || !hasInspection) return { id: requirement.id, result: "unknown", evidence };
     if (refs.some((record) => record.requirementResults[requirement.id] === "failed")) {
       return { id: requirement.id, result: "failed", evidence };
@@ -282,10 +287,10 @@ function hasAvailableSurface(item: WorkItem, facts: BoardFacts): "available" | "
   return surfaceKeys(item).some((surface) => available.has(surface)) ? "available" : "unavailable";
 }
 
-function baseBucket(item: WorkItem, verified: boolean, accepted: boolean, promoted: boolean): BoardBucket {
+function baseBucket(item: WorkItem, verified: boolean, accepted: boolean, promoted: boolean, submittedForReview: boolean): BoardBucket {
   if (promoted) return "promoted";
   if (accepted) return "accepted";
-  if (verified) return "ready-for-review";
+  if (verified || item.status === "review" || submittedForReview) return "ready-for-review";
   if (item.status === "active") return "active";
   return "queued";
 }
@@ -306,6 +311,7 @@ export function assessWorkItems(items: readonly WorkItem[], facts: BoardFacts = 
       if (shapeErrors.length) blockers.push(...shapeErrors);
       if (available === "unavailable") blockers.push("implementation/material surface unavailable");
       if (available === "unknown") blockers.push("implementation/material surface availability unknown");
+      const submittedForReview = (facts.reviewSubmissionItemIds ?? []).includes(item.id);
       const synthetic =
         (facts.verificationRecords ?? []).some((record) => record.itemId === item.id && record.synthetic) ||
         (facts.acceptanceRecords ?? []).some((record) => record.itemId === item.id && record.synthetic) ||
@@ -325,8 +331,12 @@ export function assessWorkItems(items: readonly WorkItem[], facts: BoardFacts = 
         available,
         dependencySatisfied: true,
         blockers: [...new Set(blockers)],
-        bucket: baseBucket(item, verified, accepted, promoted),
+        bucket: baseBucket(item, verified, accepted, promoted, submittedForReview),
         synthetic,
+        submittedForReview,
+        humanInspectionCount: (facts.humanInspectionRecords ?? []).filter((record) =>
+          record.itemId === item.id && record.checkpointId === checkpoint?.id && record.subjectCommit === checkpoint?.commit,
+        ).length,
       };
     });
 }

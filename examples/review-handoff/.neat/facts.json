@@ -1,0 +1,4 @@
+{
+  "availableSurfaces": ["demo"],
+  "compositions": [{ "identity": "demo.review-flow", "pql": { "PrincipleComponentRender": "Demo review", "Ticks": [{ "name": "Review handoff", "Calculations": [{ "call": "fn.demo.render", "into": "px.demo.render" }, { "call": "fn.demo.inspect", "into": "px.demo.inspect" }] }] } }]
+}

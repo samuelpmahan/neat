@@ -3,12 +3,13 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { materializeBoard } from "./board.js";
 import { renderReport, type MgmMatrix } from "./report.js";
-import { guardedUpdate, readSnapshot, snapshotProblems } from "./io.js";
+import { guardedUpdate, importHumanInspection, readSnapshot, snapshotProblems, submitReview } from "./io.js";
 import type { WorkItemUpdatePatch } from "./work-items.js";
+import { HumanInspectionRecord, ReviewSubmission, renderHandoffMarkdown } from "./review.js";
 import { workItemRevision } from "./work-items.js";
 
 function usage(): string {
-  return "neat <check|next|board|html|matrix|update> [--root <repo>]\n  html [--out <path>]   generate a self-contained report with Board, Matrix, and Dependencies tabs\n  update <id> --expect <item-fingerprint> --patch <json-file>";
+  return "neat <check|next|board|html|matrix|update|submit|handoff|import-inspection> [--root <repo>]\n  submit <submission.json>     validate current item/checkpoint and create immutable handoff\n  handoff [--out <path>]       generate Markdown review handoffs\n  import-inspection <file.json> persist a browser-exported human inspection\n  html [--out <path>]   generate a self-contained report with Board, Matrix, and Dependencies tabs\n  update <id> --expect <item-fingerprint> --patch <json-file>";
 }
 
 function option(args: readonly string[], name: string): string | undefined {
@@ -20,6 +21,16 @@ async function main(args: string[]): Promise<void> {
   const command = args[0];
   const root = option(args, "--root") ?? process.cwd();
   if (!command || command === "--help" || command === "help") throw new Error(usage());
+  if (command === "submit") {
+    const source = args[1]; if (!source) throw new Error(usage());
+    await submitReview(root, JSON.parse(await readFile(source, "utf8")) as ReviewSubmission);
+    process.stdout.write("review handoff submitted\n"); return;
+  }
+  if (command === "import-inspection") {
+    const source = args[1]; if (!source) throw new Error(usage());
+    await importHumanInspection(root, JSON.parse(await readFile(source, "utf8")) as HumanInspectionRecord);
+    process.stdout.write("human inspection imported\n"); return;
+  }
   if (command === "update") {
     const id = args[1];
     const expected = option(args, "--expect");
@@ -39,6 +50,13 @@ async function main(args: string[]): Promise<void> {
   }
   if (problems.length) throw new Error(problems.join("\n"));
   const board = materializeBoard(snapshot);
+  if (command === "handoff") {
+    const selected = option(args, "--out");
+    const markdown = renderHandoffMarkdown(snapshot.items, snapshot.submissions);
+    if (selected) { const output = isAbsolute(selected) ? selected : resolve(root, selected); await mkdir(dirname(output), { recursive: true }); await writeFile(output, markdown, "utf8"); process.stdout.write(`${output}\n`); }
+    else process.stdout.write(markdown);
+    return;
+  }
   if (command === "html" || command === "matrix") {
     const matrix = await readFile(resolve(root, ".neat", "mgm.json"), "utf8")
       .then((text) => JSON.parse(text) as MgmMatrix)
@@ -49,7 +67,7 @@ async function main(args: string[]): Promise<void> {
     const selected = option(args, "--out");
     const output = selected ? (isAbsolute(selected) ? selected : resolve(root, selected)) : resolve(root, ".neat", "out", "neat-report.html");
     await mkdir(dirname(output), { recursive: true });
-    await writeFile(output, renderReport(board, snapshot.items, { matrix }), "utf8");
+    await writeFile(output, renderReport(board, snapshot.items, { title: root.includes("examples/review-handoff") ? "Synthetic review handoff example" : undefined, matrix, submissions: snapshot.submissions, humanInspections: snapshot.humanInspections }), "utf8");
     process.stdout.write(`${output}\n`);
     return;
   }

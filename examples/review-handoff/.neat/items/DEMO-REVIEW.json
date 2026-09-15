@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "DEMO-REVIEW",
+  "outcome": "A reusable review handoff shows what changed and how to inspect it.",
+  "location": { "component": "demo" },
+  "target": { "kind": "tick", "identity": "tick.demo.review", "composition": "demo.review-flow", "name": "Review handoff" },
+  "requirements": [
+    { "id": "structured", "text": "The handoff names the exact checkpoint and change." },
+    { "id": "inspectable", "text": "Each submitted verification has an observed result and an inspectable route." }
+  ],
+  "dependencies": [],
+  "agent": "neat-demo-agent",
+  "status": "review",
+  "blockers": [],
+  "checkpoints": [{ "id": "cp-demo-review", "commit": "abc123demo", "observationRef": "reports/demo-review.html", "verificationRefs": {} }],
+  "acceptanceRefs": [],
+  "promotionRefs": [],
+  "resume": "Open the Review tab, inspect the two proof routes, then export an inspection record."
+}
